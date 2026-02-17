@@ -20,6 +20,19 @@ services:
     networks:
       - localhost_net
 
+  dnsmasq:
+    image: dockurr/dnsmasq:latest
+    # The image's entrypoint builds its own config from /etc/dnsmasq.default
+    # and reads additional confs from /etc/dnsmasq.d/*.conf. Mount a local
+    # directory with our address override so it gets applied on start.
+    volumes:
+      - ./dnsmasq.d/:/etc/dnsmasq.d/
+    ports:
+      - "127.0.0.1:53:53/udp"
+      - "127.0.0.1:53:53/tcp"
+    restart: unless-stopped
+    # dnsmasq binds to host loopback so macOS can query it via /etc/resolver/docker
+
 volumes: {}
 
 networks:
