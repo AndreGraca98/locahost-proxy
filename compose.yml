@@ -5,26 +5,31 @@ services:
     image: traefik:latest
     command:
       - --providers.docker=true
+      # only expose containers with explicit traefik.enable=true
+      # to avoid accidentally exposing services
       - --providers.docker.exposedbydefault=false
-      - --entryPoints.web.address=:80
+      # entrypoint named "web_proxy" where other services will 
+      # be routed to
+      - --entryPoints.web_proxy.address=:80
       - --entryPoints.websecure.address=:443
       - --api.insecure=true
       - --log.level=INFO
     ports:
       - "80:80"
       - "443:443"
-      # - "8080:8080" # Traefik dashboard (optional)
+      - "8181:8080" # Traefik dashboard
     volumes:
       - /var/run/docker.sock:/var/run/docker.sock:ro
     restart: unless-stopped
     networks:
-      - localhost_net
+      - localhost_proxy_network
 
   dnsmasq:
     image: dockurr/dnsmasq:latest
-    # The image's entrypoint builds its own config from /etc/dnsmasq.default
-    # and reads additional confs from /etc/dnsmasq.d/*.conf. Mount a local
-    # directory with our address override so it gets applied on start.
+    # The image's entrypoint builds its own config from 
+    # /etc/dnsmasq.default and reads additional confs 
+    # from /etc/dnsmasq.d/*.conf . Mount a local directory
+    # with our address override so it gets applied on start.
     volumes:
       - ./dnsmasq.d/:/etc/dnsmasq.d/
     ports:
@@ -36,5 +41,5 @@ services:
 volumes: {}
 
 networks:
-  localhost_net:
+  localhost_proxy_network:
     external: true

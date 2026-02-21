@@ -1,15 +1,22 @@
 # Overview
 
-- **Purpose:** Provide a local Traefik-based reverse-proxy so you can open `*.localhost` hostnames and have Traefik route them to app services running in other Docker Compose projects or on your host.
-- **Files:** `compose.yml` (Traefik), `README.md`
+## Purpose
 
-**How it works**
+Provide a local Traefik-based reverse-proxy so you can open `*.docker` hostnames and have Traefik route them to app services running in other Docker Compose projects or on your host.
 
-- **Traefik container:** accepts incoming HTTP(S) requests for `*.localhost` and routes by hostname to backend services using Docker labels.
-- **Service discovery:** Traefik reaches backends by Docker service name when containers share the external Docker network `localhost_net` (recommended).
-- **DNS:** most OSes map `*.localhost` to `127.0.0.1`; no custom DNS is required for `*.localhost` names.
+## How it works
 
-**Routing & labels (current setup)**
+- **Traefik container:** accepts incoming HTTP(S) requests for `*.docker` and routes by hostname to backend services using Docker labels.
+- **Service discovery:** Traefik reaches backends by Docker service name when containers share the external Docker network `localhost_proxy_network`.
+- **DNS:** most OSes map `*.localhost` to `127.0.0.1`; no custom DNS is required for `*.localhost` names, but we use `dnsmasq` to allow custom TLDs like `*.docker`
+
+## Add other domains
+
+1. add a new line to `dnsmasq.conf` for your new TLD
+(example `address=/.docker/127.0.0.1`)
+2. add the host to your
+
+## Routing & labels (current setup)
 
 Traefik is configured to only route containers that set `traefik.enable=true`. Use labels in your app Compose to declare router rules and the internal port Traefik should target.
 
@@ -20,7 +27,7 @@ services:
   api:
     image: your-api-image
     networks:
-      - localhost_net
+      - localhost_proxy_network
     labels:
       - "traefik.enable=true"
       - "traefik.http.routers.api.rule=Host(`api.localhost`)"
@@ -30,7 +37,7 @@ services:
   docs:
     image: your-docs-image
     networks:
-      - localhost_net
+      - localhost_proxy_network
     labels:
       - "traefik.enable=true"
       - "traefik.http.routers.docs.rule=Host(`docs.localhost`)"
@@ -40,7 +47,7 @@ services:
   ui:
     image: your-ui-image
     networks:
-      - localhost_net
+      - localhost_proxy_network
     labels:
       - "traefik.enable=true"
       - "traefik.http.routers.ui.rule=HostRegexp(`{subdomain:[^.]+}.localhost`)"
@@ -48,7 +55,7 @@ services:
       - "traefik.http.services.ui.loadbalancer.server.port=80"
 
 networks:
-  localhost_net:
+  localhost_proxy_network:
     external: true
 ```
 
@@ -62,7 +69,7 @@ Notes:
 1. Create the external network (one-time):
 
 ```bash
-docker network create localhost_net
+docker network create localhost_proxy_network
 ```
 
 1. Start the proxy stack in this repo:
@@ -71,7 +78,7 @@ docker network create localhost_net
 docker compose -f compose.yml up -d traefik
 ```
 
-1. In your app Compose files, add the Traefik labels and join `localhost_net`, then start them.
+1. In your app Compose files, add the Traefik labels and join `localhost_proxy_network`, then start them.
 
 2. Open in browser:
 
@@ -81,7 +88,7 @@ docker compose -f compose.yml up -d traefik
 
 **Security & troubleshooting**
 
-- If Traefik doesn't route a container, confirm the container has the correct labels and is on `localhost_net`.
+- If Traefik doesn't route a container, confirm the container has the correct labels and is on `localhost_proxy_network`.
 - If you expose the Traefik dashboard (`:8080`) keep it secure in non-local environments.
 
 **Host resolution and `/etc/hosts`**
@@ -97,7 +104,7 @@ sudo killall -HUP mDNSResponder
 
 **What your app(s) must do (recommended)**
 
-- Join the shared network `localhost_net` and set the Traefik labels shown above.
+- Join the shared network `localhost_proxy_network` and set the Traefik labels shown above.
 - Listen on the internal port Traefik expects (commonly `80` or `8000` as configured per service). You do not need to publish that port to the host when using the shared network.
 
 **If you cannot join the shared network**
@@ -110,4 +117,4 @@ sudo killall -HUP mDNSResponder
 
 **Next actions**
 
-- Attach your `api`, `docs`, and `ui` services to `localhost_net`, or tell me the host ports and I'll update instructions to use `host.docker.internal` targets.
+- Attach your `api`, `docs`, and `ui` services to `localhost_proxy_network`, or tell me the host ports and I'll update instructions to use `host.docker.internal` targets.
