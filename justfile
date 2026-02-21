@@ -41,7 +41,6 @@ add-dnsmasq domain='docker':
   echo "address=/.{{domain}}/127.0.0.1" | tee ./dnsmasq.d/{{domain}}.conf > /dev/null
 
 
-
 # Start the compose stack (ensures network exists first)
 [group: 'docker']
 up: add-proxy-network
@@ -51,14 +50,14 @@ up: add-proxy-network
 [group: 'docker']
 down:
   docker compose down --remove-orphans
-  docker network rm {{network}} || true
+  @(docker network rm {{network}} 2>/dev/null 1>/dev/null && echo Removed network: {{network}} ) || true
 
 # restart Traefik and dnsmasq so they pick up config changes
 [group: 'docker']
 restart: clean-cache
-  docker restart traefik dnsmasq || true
+  docker restart traefik dnsmasq
 
 # Ensure the external Docker network exists
 [group: 'docker']
 add-proxy-network:
-  docker network create {{network}} || true
+  @(docker network create {{network}} 2>/dev/null 1>/dev/null && echo Created network: {{network}} ) || true
