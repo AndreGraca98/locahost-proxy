@@ -31,6 +31,7 @@ just run
 
 Notes:
 
+- Can access the Traefik dashboard at <http://traefik.docker> (if using the example labels in `compose.yml`) and see the configured routers/services.
 - The `add-resolver` and `clean-cache` tasks will prompt for `sudo` because they modify system DNS configuration on macOS.
 - `clean-cache` is macOS-specific; Linux users may need different commands (see Troubleshooting).
 
