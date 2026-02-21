@@ -26,7 +26,7 @@ just add-domain domain=docker
 1. Start the proxy stack:
 
 ```bash
-just up
+just run
 ```
 
 Notes:
@@ -36,9 +36,9 @@ Notes:
 
 ## How it works
 
-- **Traefik container:** accepts incoming HTTP(S) requests for `*.docker` and routes by hostname to backend services using Docker labels.
-- **Service discovery:** Traefik reaches backends by Docker service name when containers share the external Docker network `localhost_proxy_network`.
-- **DNS:** most OSes map `*.localhost` to `127.0.0.1`; no custom DNS is required for `*.localhost` names, but we use `dnsmasq` to allow custom TLDs like `*.docker`
+- Traefik listens on host ports 80/443 and routes to backend Docker services that share the external network `localhost_proxy_network`.
+- Traefik will only route containers that set `traefik.enable=true` and are reachable on the shared network; routing rules are declared with Docker labels on your services.
+- For `*.localhost` names you normally don't need extra DNS configuration; for custom TLDs (e.g. `.docker`) this repo uses `dnsmasq` plus an OS resolver file in `/etc/resolver/<tld>` so the OS forwards queries to the local dnsmasq instance.
 
 ## Add other domains
 
@@ -60,7 +60,7 @@ services:
       - localhost_proxy_network
     labels:
       - "traefik.enable=true"
-      - "traefik.http.routers.api.rule=Host(`api.localhost`)"
+      - "traefik.http.routers.api.rule=Host(`api.docker`)"
       - "traefik.http.routers.api.entrypoints=web"
       - "traefik.http.services.api.loadbalancer.server.port=80"
 
@@ -70,7 +70,7 @@ services:
       - localhost_proxy_network
     labels:
       - "traefik.enable=true"
-      - "traefik.http.routers.docs.rule=Host(`docs.localhost`)"
+      - "traefik.http.routers.docs.rule=Host(`docs.docker`)"
       - "traefik.http.routers.docs.entrypoints=web"
       - "traefik.http.services.docs.loadbalancer.server.port=8000"
 
@@ -85,49 +85,6 @@ Local Traefik-based reverse-proxy for development. Routes `*.localhost` (and opt
 - Traefik: HTTP reverse-proxy using the Docker provider. Only routes containers with `traefik.enable=true`.
 - dnsmasq: provides local TLD support (e.g. `*.docker`) by answering DNS queries on `127.0.0.1`.
 - shared Docker network: `localhost_proxy_network` (external) — used so Traefik can reach backend containers by service name.
-
-## How it works
-
-- Traefik listens on host ports 80/443 and routes to backend Docker services that share the external network `localhost_proxy_network`.
-- For `*.localhost` names you normally don't need extra DNS configuration; for custom TLDs (e.g. `.docker`) we use `dnsmasq` plus an OS resolver file in `/etc/resolver/<tld>` to point queries to the local dnsmasq instance.
-
-## `justfile` tasks and the commands they run
-
-The repository includes a `justfile` with convenience recipes. Below are the main tasks and the important commands they use.
-
-- `just _list` / `just -ul` — show tasks.
-- `just add-proxy-network` — creates the external Docker network:
-
-```bash
-docker network create localhost_proxy_network
-```
-
-- `just up` — runs `docker compose up -d` to start the proxy stack.
-- `just down` — runs `docker compose down --remove-orphans` and attempts to remove the `localhost_proxy_network`.
-- `just restart` — runs `just clean-cache` then `docker restart traefik dnsmasq` to reload proxy and DNS.
-- `just clean-cache` — runs two macOS-specific commands:
-
-```bash
-sudo dscacheutil -flushcache
-sudo killall -HUP mDNSResponder
-```
-
-- `dscacheutil -flushcache` clears the DirectoryService/DNS lookup cache.
-- `killall -HUP mDNSResponder` sends SIGHUP to the system mDNSResponder process, causing it to reload; combined they ensure resolver changes are effective immediately on macOS.
-
-- `just add-resolver domain=<tld>` — creates `/etc/resolver/<tld>` containing `nameserver 127.0.0.1` using `sudo` and `tee`, e.g.:
-
-```bash
-echo "nameserver 127.0.0.1" | sudo tee /etc/resolver/docker
-```
-
-- `just add-dnsmasq domain=<tld>` — writes a dnsmasq config file in `./dnsmasq.d/<tld>.conf` containing:
-
-```text
-address=/.docker/127.0.0.1
-```
-
-- `just add-domain domain=<tld>` — shorthand that runs `add-resolver`, `add-dnsmasq`, then `restart` to apply the changes.
 
 ### Notes about safety and options
 
