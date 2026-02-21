@@ -25,7 +25,7 @@ clean-cache:
 add-domain: 
   just add-resolver
   just add-dnsmasq
-  just restart-proxy
+  just restart
 
 # Add a resolver for a domain
 [group: 'new-domain']
