@@ -1,4 +1,4 @@
 tls:
   certificates:
-    - certFile: /certs/docker.crt
-      keyFile:  /certs/docker.key
+    - certFile: /certs/traefik.docker.crt
+      keyFile:  /certs/traefik.docker.key

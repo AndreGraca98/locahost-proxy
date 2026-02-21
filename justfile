@@ -54,11 +54,36 @@ add-dnsmasq domain='docker':
 
 # Generate TLS certs for a domain with mkcert
 [group: 'new-domain']
-add-certs domain='docker':
-  # mkcert -cert-file certs/docker.crt -key-file certs/docker.key "service-b.docker" "docker" "*.docker" 
-  # mkcert -cert-file certs/{{domain}}.crt -key-file certs/{{domain}}.key "{{domain}}" "*.{{domain}}"
-  mkcert -cert-file certs/{{domain}}.crt -key-file certs/{{domain}}.key "{{domain}}" "*.{{domain}}"
-  @printf '\n    - certFile: /certs/{{domain}}.crt\n      keyFile:  /certs/{{domain}}.key\n' >> ./traefik/dynamic/tls.yaml
+add-certs full_host='docker':
+  #!/usr/bin/env python3
+  import subprocess
+  import sys
+  from pathlib import Path
+
+  full_host = "{{full_host}}"
+  *subdomains, domain = full_host.split('.')
+
+  certs_dir = Path('./certs')
+  certs_dir.mkdir(exist_ok=True)
+  cert_file = certs_dir / f'{full_host}.crt'
+  key_file = certs_dir / f'{full_host}.key'
+  cmd = f'mkcert -cert-file {cert_file} -key-file {key_file} "{domain}" "*.{domain}" "{full_host}"'
+  print(f"Generating certs for {full_host} with command:\n{cmd}")
+  subprocess.run(cmd, shell=True, check=True)
+  print(f"Certs generated:\n  cert: {cert_file}\n  key:  {key_file}")
+  
+  tls_config = Path('./traefik/dynamic/tls.yaml')
+  content = tls_config.read_text()  # ensure the file exists
+  new_entry = f"\n    - certFile: /certs/{full_host}.crt\n      keyFile:  /certs/{full_host}.key"
+  if new_entry in content:
+    print(f"TLS config for {full_host} already exists in {tls_config}, skipping update")
+  else:
+      tls_config.write_text(content + new_entry)
+      print(f"TLS config for {full_host} updated in {tls_config}")
+# # mkcert -cert-file certs/docker.crt -key-file certs/docker.key "service-b.docker" "docker" "*.docker" 
+# # mkcert -cert-file certs/{{domain}}.crt -key-file certs/{{domain}}.key "{{domain}}" "*.{{domain}}"
+# mkcert -cert-file certs/{{domain}}.crt -key-file certs/{{domain}}.key "{{domain}}" "*.{{domain}}"
+# @printf '\n    - certFile: /certs/{{domain}}.crt\n      keyFile:  /certs/{{domain}}.key\n' >> ./traefik/dynamic/tls.yaml
 
 # Start the compose stack (ensures network exists first)
 [group: 'docker']

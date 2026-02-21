@@ -20,15 +20,15 @@ services:
       # entrypoint named "web_proxy" where other services will 
       # be routed to. redirects http to https
       - --entrypoints.web_proxy.address=:80
-      - --entrypoints.web_proxy.http.redirections.entrypoint.to=websecure
+      - --entrypoints.web_proxy.http.redirections.entrypoint.to=web_proxy_secure
       - --entrypoints.web_proxy.http.redirections.entrypoint.scheme=https
       - --entrypoints.web_proxy.http.redirections.entrypoint.permanent=true
-      - --entrypoints.websecure.address=:443
-      - --entrypoints.websecure.http.tls=true
+      - --entrypoints.web_proxy_secure.address=:443
+      - --entrypoints.web_proxy_secure.http.tls=true
       
 
       - --api.dashboard=true
-      - --api.insecure=false
+      - --api.insecure=true
       - --log.level=INFO
       
     ports:
@@ -46,7 +46,8 @@ services:
     labels:
       - "traefik.enable=true"
       - "traefik.http.routers.traefik.rule=Host(`traefik.docker`)"
-      - "traefik.http.routers.traefik.entrypoints=web_proxy"
+      - "traefik.http.routers.traefik.entrypoints=web_proxy,web_proxy_secure"
+      - "traefik.http.routers.traefik.tls=true"
       - "traefik.http.services.traefik.loadbalancer.server.port=8080"
 
   dnsmasq:
