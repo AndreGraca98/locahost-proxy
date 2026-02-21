@@ -23,6 +23,11 @@ services:
     restart: unless-stopped
     networks:
       - localhost_proxy_network
+    labels:
+      - "traefik.enable=true"
+      - "traefik.http.routers.traefik.rule=Host(`traefik.docker`)"
+      - "traefik.http.routers.traefik.entrypoints=web_proxy"
+      - "traefik.http.services.traefik.loadbalancer.server.port=8080"
 
   dnsmasq:
     image: dockurr/dnsmasq:latest
