@@ -3,23 +3,43 @@ name: localhost-proxy
 services:
   traefik:
     image: traefik:latest
+    security_opt:
+      - no-new-privileges:true
     command:
+      # Providers
       - --providers.docker=true
       # only expose containers with explicit traefik.enable=true
       # to avoid accidentally exposing services
       - --providers.docker.exposedbydefault=false
+      - --providers.docker.network=localhost_proxy_network
+
+      - --providers.file.directory=/dynamic
+      - --providers.file.watch=true
+      
+      # Entrypoints
       # entrypoint named "web_proxy" where other services will 
-      # be routed to
-      - --entryPoints.web_proxy.address=:80
-      - --entryPoints.websecure.address=:443
-      - --api.insecure=true
+      # be routed to. redirects http to https
+      - --entrypoints.web_proxy.address=:80
+      - --entrypoints.web_proxy.http.redirections.entrypoint.to=websecure
+      - --entrypoints.web_proxy.http.redirections.entrypoint.scheme=https
+      - --entrypoints.web_proxy.http.redirections.entrypoint.permanent=true
+      - --entrypoints.websecure.address=:443
+      - --entrypoints.websecure.http.tls=true
+      
+
+      - --api.dashboard=true
+      - --api.insecure=false
       - --log.level=INFO
+      
     ports:
       - "80:80"
       - "443:443"
       - "8181:8080" # Traefik dashboard
     volumes:
       - /var/run/docker.sock:/var/run/docker.sock:ro
+      - ./certs:/certs:ro
+      # - ./traefik/traefik.yml:/traefik.yml:ro
+      - ./traefik/dynamic:/dynamic:ro
     restart: unless-stopped
     networks:
       - localhost_proxy_network
