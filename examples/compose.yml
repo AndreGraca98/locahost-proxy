@@ -1,0 +1,39 @@
+name: example-auto-discovery
+services:
+  service-a:
+    build:
+      dockerfile: Dockerfile
+    environment:
+      SERVICE_NAME: service-a
+      PORT: 5000
+    # ports: # not required for proxy routing, only for testing from host
+    #   - "5001:5000"
+    labels:
+      - "traefik.enable=true"
+      - "traefik.http.routers.service-a.rule=Host(`service-a.docker`)"
+      - "traefik.http.routers.service-a.entrypoints=web_proxy"
+      - "traefik.http.services.service-a.loadbalancer.server.port=5000"
+    networks:
+      - localhost_proxy_network
+
+  service-b:
+    build:
+      dockerfile: Dockerfile
+    environment:
+      SERVICE_NAME: service-b
+      USING_SECURE_ENTRYPOINT: "true"
+      PORT: 5000
+    # ports: # not needed for proxy routing, only expose if you want to test directly from the host
+    #   - "5002:5000"
+    labels:
+      - "traefik.enable=true"
+      - "traefik.http.routers.service-b.rule=Host(`service-b.docker`)"
+      - "traefik.http.routers.service-b.entrypoints=web_proxy,websecure"
+      - "traefik.http.routers.service-b.tls=true"
+      - "traefik.http.services.service-b.loadbalancer.server.port=5000"
+    networks:
+      - localhost_proxy_network
+
+networks:
+  localhost_proxy_network:
+    external: true

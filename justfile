@@ -43,12 +43,12 @@ add-dnsmasq domain='docker':
 
 # Start the compose stack (ensures network exists first)
 [group: 'docker']
-up: add-proxy-network
+run: add-proxy-network
   docker compose up -d
 
 # Stop and remove the compose stack
 [group: 'docker']
-down:
+stop:
   docker compose down --remove-orphans
   @(docker network rm {{network}} 2>/dev/null 1>/dev/null && echo Removed network: {{network}} ) || true
 
@@ -61,3 +61,24 @@ restart: clean-cache
 [group: 'docker']
 add-proxy-network:
   @(docker network create {{network}} 2>/dev/null 1>/dev/null && echo Created network: {{network}} ) || true
+
+# Run the example for Service A (HTTP only)
+[group: 'examples']
+run-example-a: add-proxy-network
+  @docker compose -f examples/compose.yml up -d service-a \
+    1>/dev/null  && \
+    printf 'Open \033[1;94mhttp://service-a.docker\033[0m\n' && \
+    printf 'Open \033[1;94mhttps://service-a.docker\033[0m (should fail since it is not configured for TLS)\n'
+
+# Run the example for Service B (HTTP + HTTPS)
+[group: 'examples']
+run-example-b: add-proxy-network
+  @docker compose -f examples/compose.yml up -d service-b \
+    1>/dev/null && \
+    printf 'Open \033[1;94mhttp://service-b.docker\033[0m\n' && \
+    printf 'Open \033[1;94mhttps://service-b.docker\033[0m (works as well, TLS is enabled for this service)\n'
+
+# Stop all the examples
+[group: 'examples']
+stop-examples: 
+  docker compose -f examples/compose.yml down --remove-orphans
